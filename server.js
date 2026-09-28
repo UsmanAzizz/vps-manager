@@ -69,7 +69,19 @@ app.get('/api/scan', async (req, res) => {
       cpu: app.monit.cpu + '%',
       path: app.pm2_env.pm_cwd
     }));
-    res.json({ success: true, projects });
+
+    let wwwDirs = [];
+    try {
+      const wwwResult = await execSSH('find /var/www -mindepth 1 -maxdepth 1 -type d -exec basename {} \\; 2>/dev/null || echo ""');
+      if (wwwResult.stdout && wwwResult.stdout.trim()) {
+         wwwDirs = wwwResult.stdout.trim().split('\n').filter(Boolean).map(name => ({
+            name: name.trim(),
+            path: '/var/www/' + name.trim()
+         }));
+      }
+    } catch(err) {}
+
+    res.json({ success: true, projects, wwwDirs });
   } catch (err) { res.status(500).json({ success: false, error: err.message }); }
 });
 

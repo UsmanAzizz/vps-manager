@@ -28,7 +28,9 @@ export default function TerminalPane() {
     
     // Slight delay to ensure parent container is rendered for fitting
     setTimeout(() => {
-      fit.fit();
+      if (terminalRef.current && terminalRef.current.clientWidth > 0) {
+        try { fit.fit(); } catch(e) {}
+      }
     }, 100);
     
     termInstance.current = term;
@@ -52,22 +54,52 @@ export default function TerminalPane() {
 
     // Handle Resize
     const handleResize = () => {
-      try {
-        fit.fit();
-        socket.emit('terminal:resize', { cols: term.cols, rows: term.rows });
-      } catch (e) {}
+      if (terminalRef.current && terminalRef.current.clientWidth > 0) {
+        try {
+          fit.fit();
+          socket.emit('terminal:resize', { cols: term.cols, rows: term.rows });
+        } catch (e) {}
+      }
     };
 
     window.addEventListener('resize', handleResize);
+    
+    // Auto-fit when container becomes visible or changes size
+    let observer;
+    if (window.ResizeObserver && terminalRef.current) {
+      observer = new ResizeObserver(() => {
+        // Small timeout to let browser calculate new DOM size
+        setTimeout(() => handleResize(), 20);
+      });
+      observer.observe(terminalRef.current);
+    }
 
     return () => {
       window.removeEventListener('resize', handleResize);
+      if (observer) observer.disconnect();
       socket.disconnect();
       term.dispose();
     };
   }, []);
 
   return (
-    <div className="w-full h-full bg-black p-2 overflow-hidden" ref={terminalRef}></div>
+    <>
+      <style>{`
+        .xterm-viewport::-webkit-scrollbar {
+          width: 8px;
+        }
+        .xterm-viewport::-webkit-scrollbar-track {
+          background: #000000;
+        }
+        .xterm-viewport::-webkit-scrollbar-thumb {
+          background: #14532d; /* green-900 */
+          border-radius: 4px;
+        }
+        .xterm-viewport::-webkit-scrollbar-thumb:hover {
+          background: #166534; /* green-800 */
+        }
+      `}</style>
+      <div className="w-full h-full bg-black p-2 overflow-hidden" ref={terminalRef}></div>
+    </>
   );
 }

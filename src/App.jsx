@@ -10,6 +10,7 @@ function App() {
   const [status, setStatus] = useState('');
   
   const [projects, setProjects] = useState([]);
+  const [wwwProjects, setWwwProjects] = useState([]);
   const [selectedProject, setSelectedProject] = useState(null);
   const [files, setFiles] = useState([]);
   
@@ -17,6 +18,7 @@ function App() {
   const [currentFile, setCurrentFile] = useState('');
   const [isSaving, setIsSaving] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [isTerminalOpen, setIsTerminalOpen] = useState(false);
 
   useEffect(() => { checkConnection(); }, []);
 
@@ -75,12 +77,12 @@ function App() {
     await fetch('http://localhost:3001/api/logout', { method: 'POST' });
     localStorage.removeItem('neo_vps_creds');
     setCreds({ host: '', port: '22', username: 'root', password: '' });
-    setRememberMe(false); setStep(1); setProjects([]); setFiles([]);
+    setRememberMe(false); setStep(1); setProjects([]); setWwwProjects([]); setFiles([]);
     setCurrentFile(''); setFileContent(''); setStatus('');
   };
 
   const scanProjects = async () => {
-    setStatus('DETECTING PM2 PROCESSES...'); setIsLoading(true);
+    setStatus('DETECTING PROCESSES & DIRS...'); setIsLoading(true);
     const res = await fetch('http://localhost:3001/api/scan');
     const data = await res.json();
     if (data.success) {
@@ -91,6 +93,9 @@ function App() {
         return acc;
       }, []);
       setProjects(uniqueProjects);
+      if (data.wwwDirs) {
+        setWwwProjects(data.wwwDirs);
+      }
       setStatus('');
     }
     setIsLoading(false);
@@ -108,6 +113,7 @@ function App() {
   };
 
   const openFile = async (file) => {
+    setIsTerminalOpen(false);
     setStatus('READING FILE...'); setIsLoading(true);
     const res = await fetch('http://localhost:3001/api/read-file', {
       method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ path: file.path })
@@ -195,23 +201,32 @@ function App() {
     <div className="flex h-screen w-full bg-black font-mono text-green-500 overflow-hidden">
       {/* SIDEBAR */}
       <div className="w-80 bg-black border-r border-green-900/30 flex flex-col">
-        <div className="p-4 border-b border-green-900/30 flex justify-between items-center">
-          <div>
-            <h3 className="font-bold tracking-wide">root@{creds.host}:~#</h3>
+        <div className="h-10 px-4 border-b border-green-900/30 flex justify-between items-center">
+          <div className="flex items-center text-green-400">
+            <h3 className="font-bold tracking-widest text-lg leading-none pt-0.5">
+              NeoPanel
+            </h3>
           </div>
-          <button onClick={handleLogout} className="text-red-600 hover:text-red-400 font-bold" title="Logout">[EXIT]</button>
+          <button onClick={handleLogout} className="text-red-600 hover:text-red-400 font-bold text-sm leading-none pt-0.5" title="Logout">
+            [EXIT]
+          </button>
         </div>
 
-        <div className="px-4 pt-4 pb-2 flex items-center justify-between">
-          <h4 className="text-xs font-bold text-green-600 uppercase">
-            --- PM2 PROCESSES ---
-          </h4>
-          <button onClick={scanProjects} className="text-green-700 hover:text-green-400">
+        <div className="px-4 py-3 flex items-center justify-between border-b border-green-900/30">
+          <span className="font-bold tracking-wide text-sm truncate mr-2" title={`root@${creds.host}:~#`}>
+            root@{creds.host}:~#
+          </span>
+          <button onClick={scanProjects} className="text-green-700 hover:text-green-400 font-bold shrink-0 text-sm">
             [RELOAD]
           </button>
         </div>
 
         <div className="flex-1 overflow-y-auto px-4 pb-4 custom-scrollbar">
+          <div className="pt-4 pb-2">
+            <h4 className="text-xs font-bold text-green-600 uppercase">
+              --- PM2 PROCESSES ---
+            </h4>
+          </div>
           <div className="flex flex-col mt-2">
             {projects.length === 0 && !isLoading && <div className="text-sm text-green-800">No apps running in PM2</div>}
             {projects.map(p => (
@@ -223,6 +238,26 @@ function App() {
                   <span className="w-6">{selectedProject?.name === p.name ? '*' : ' '}</span>
                   <strong className="font-normal text-sm">{p.name}</strong>
                   {p.status !== 'online' && <span className="ml-auto text-xs text-red-500">[{p.status}]</span>}
+                </div>
+              </div>
+            ))}
+          </div>
+
+          <div className="pt-6 pb-2">
+            <h4 className="text-xs font-bold text-green-600 uppercase">
+              --- WWW DIRECTORY ---
+            </h4>
+          </div>
+          <div className="flex flex-col mt-2">
+            {wwwProjects.length === 0 && !isLoading && <div className="text-sm text-green-800">No directories found</div>}
+            {wwwProjects.map(p => (
+              <div 
+                key={p.path} onClick={() => handleSelectProject(p)}
+                className={`cursor-pointer px-2 py-1 transition-colors ${selectedProject?.name === p.name ? 'text-green-400 bg-green-900/30' : 'text-green-700 hover:text-green-500 hover:bg-green-900/10'}`}
+              >
+                <div className="flex items-center">
+                  <span className="w-6">{selectedProject?.name === p.name ? '*' : ' '}</span>
+                  <strong className="font-normal text-sm">/{p.name}</strong>
                 </div>
               </div>
             ))}
@@ -257,7 +292,9 @@ function App() {
         {/* Header */}
         <div className="h-10 border-b border-green-900/30 flex items-center justify-between px-4 text-green-600">
           <div className="flex items-center gap-2 text-sm">
-            {currentFile ? (
+            {isTerminalOpen ? (
+              <span>$ terminal</span>
+            ) : currentFile ? (
               <span>$ nano {currentFile}</span>
             ) : (
               <span>$ _</span>
@@ -267,8 +304,25 @@ function App() {
           <div className="flex items-center gap-4">
             {status && <span className="text-sm animate-pulse text-yellow-500">{status}</span>}
             <button 
+              onClick={() => setIsTerminalOpen(!isTerminalOpen)}
+              className={`text-sm font-bold transition-colors ${isTerminalOpen ? 'text-red-500 hover:text-red-400' : 'text-green-600 hover:text-green-400'}`}
+              title="Toggle Terminal"
+            >
+              {isTerminalOpen ? '[CLOSE TERMINAL]' : '[TERMINAL]'}
+            </button>
+            {currentFile && (
+              <button 
+                onClick={() => { setCurrentFile(''); setFileContent(''); }}
+                disabled={isTerminalOpen}
+                className="text-yellow-600 hover:text-yellow-400 disabled:opacity-50 disabled:cursor-not-allowed text-sm"
+                title="Close File"
+              >
+                [CLOSE]
+              </button>
+            )}
+            <button 
               onClick={saveFile} 
-              disabled={!currentFile || isSaving}
+              disabled={isTerminalOpen || !currentFile || isSaving}
               className="text-green-600 hover:text-green-400 disabled:opacity-50 disabled:cursor-not-allowed text-sm"
             >
               {isSaving ? '[SAVING...]' : '[SAVE]'}
@@ -277,13 +331,14 @@ function App() {
         </div>
 
         {/* Editor Content */}
+        {/* Main Content Area */}
         <div className="flex-1 flex flex-col p-0 relative overflow-hidden bg-black">
           <style>{`
             .editor-textarea::selection { background: rgba(255, 255, 255, 0.2); color: transparent; }
           `}</style>
           
-          {/* Top Half: Editor */}
-          <div className="flex-1 relative overflow-hidden">
+          {/* Editor View */}
+          <div className={`${!isTerminalOpen ? 'flex-1 flex flex-col relative overflow-hidden' : 'hidden'}`}>
             {currentFile ? (
               <div className="w-full h-full overflow-auto custom-scrollbar relative">
                 <div className="relative min-w-full inline-block min-h-full">
@@ -324,8 +379,8 @@ function App() {
             )}
           </div>
 
-          {/* Bottom Half: Terminal */}
-          <div className="h-64 border-t border-green-900/30">
+          {/* Terminal View */}
+          <div className={`${isTerminalOpen ? 'flex-1 relative w-full h-full' : 'hidden'}`}>
             <TerminalPane />
           </div>
 
