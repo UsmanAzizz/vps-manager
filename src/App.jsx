@@ -1,9 +1,10 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import './index.css';
 
 function App() {
-  const [step, setStep] = useState(1); // 1: Login, 2: Dashboard
+  const [step, setStep] = useState(0); // 0: loading, 1: login, 2: dashboard
   const [creds, setCreds] = useState({ host: '', port: '22', username: 'root', password: '' });
+  const [rememberMe, setRememberMe] = useState(false);
   const [status, setStatus] = useState('');
   
   const [projects, setProjects] = useState([]);
@@ -12,6 +13,63 @@ function App() {
   
   const [fileContent, setFileContent] = useState('');
   const [currentFile, setCurrentFile] = useState('');
+
+  useEffect(() => {
+    checkConnection();
+  }, []);
+
+  const checkConnection = async () => {
+    try {
+      const res = await fetch('http://localhost:3001/api/status');
+      const data = await res.json();
+      if (data.connected) {
+        setCreds({ ...creds, host: data.host });
+        setStep(2);
+        scanProjects();
+      } else {
+        // Cek localStorage jika backend ternyata reset
+        const savedCreds = localStorage.getItem('neo_vps_creds');
+        if (savedCreds) {
+          const parsed = JSON.parse(savedCreds);
+          setCreds(parsed);
+          setRememberMe(true);
+          // Lakukan auto-login secara background
+          autoLogin(parsed);
+        } else {
+          setStep(1);
+        }
+      }
+    } catch (e) {
+      const savedCreds = localStorage.getItem('neo_vps_creds');
+      if (savedCreds) {
+        setCreds(JSON.parse(savedCreds));
+        setRememberMe(true);
+      }
+      setStep(1);
+    }
+  };
+
+  const autoLogin = async (credentials) => {
+    setStatus('Auto-connecting...');
+    try {
+      const res = await fetch('http://localhost:3001/api/connect', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(credentials)
+      });
+      const data = await res.json();
+      if (data.success) {
+        setStep(2);
+        scanProjects();
+      } else {
+        setStatus('Auto-login gagal: ' + data.error);
+        setStep(1);
+      }
+    } catch (err) {
+      setStatus('Error koneksi lokal: ' + err.message);
+      setStep(1);
+    }
+  };
 
   const handleLogin = async (e) => {
     e.preventDefault();
@@ -24,6 +82,11 @@ function App() {
       });
       const data = await res.json();
       if (data.success) {
+        if (rememberMe) {
+          localStorage.setItem('neo_vps_creds', JSON.stringify(creds));
+        } else {
+          localStorage.removeItem('neo_vps_creds');
+        }
         setStatus('Berhasil terhubung!');
         setStep(2);
         scanProjects();
@@ -33,6 +96,21 @@ function App() {
     } catch (err) {
       setStatus('Error koneksi lokal: ' + err.message);
     }
+  };
+
+  const handleLogout = async () => {
+    try {
+      await fetch('http://localhost:3001/api/logout', { method: 'POST' });
+      localStorage.removeItem('neo_vps_creds');
+      setCreds({ host: '', port: '22', username: 'root', password: '' });
+      setRememberMe(false);
+      setStep(1);
+      setProjects([]);
+      setFiles([]);
+      setCurrentFile('');
+      setFileContent('');
+      setStatus('');
+    } catch (e) {}
   };
 
   const scanProjects = async () => {
@@ -70,7 +148,7 @@ function App() {
       body: JSON.stringify({ path: file.path })
     });
     const data = await res.json();
-    if (data.data) {
+    if (data.data !== undefined) {
       setFileContent(data.data);
       setCurrentFile(file.path);
       setStatus('File dimuat.');
@@ -78,6 +156,23 @@ function App() {
       setStatus('Gagal baca file: ' + data.error);
     }
   };
+
+  const saveFile = async () => {
+    setStatus('Menyimpan ' + currentFile + '...');
+    const res = await fetch('http://localhost:3001/api/write-file', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ path: currentFile, content: fileContent })
+    });
+    const data = await res.json();
+    if (data.success) {
+      setStatus('Berhasil disimpan!');
+    } else {
+      setStatus('Gagal menyimpan: ' + data.error);
+    }
+  };
+
+  if (step === 0) return <div style={{padding:'40px', fontFamily:'sans-serif'}}>Memuat sesi... {status}</div>;
 
   if (step === 1) {
     return (
@@ -88,7 +183,13 @@ function App() {
           <input placeholder="Port" value={creds.port} onChange={e => setCreds({...creds, port: e.target.value})} required />
           <input placeholder="Username" value={creds.username} onChange={e => setCreds({...creds, username: e.target.value})} required />
           <input type="password" placeholder="Password" value={creds.password} onChange={e => setCreds({...creds, password: e.target.value})} required />
-          <button type="submit" style={{ padding: '10px', background: '#3b82f6', color: 'white', border: 'none', cursor: 'pointer' }}>Connect to VPS</button>
+          
+          <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontSize: '14px' }}>
+            <input type="checkbox" checked={rememberMe} onChange={e => setRememberMe(e.target.checked)} />
+            Simpan Kredensial (Auto-Login saat direfresh)
+          </label>
+          
+          <button type="submit" style={{ padding: '10px', background: '#3b82f6', color: 'white', border: 'none', cursor: 'pointer', borderRadius: '4px' }}>Connect to VPS</button>
         </form>
         <p style={{ marginTop: '20px', color: '#666' }}>{status}</p>
       </div>
@@ -99,7 +200,10 @@ function App() {
     <div style={{ display: 'flex', height: '100vh', fontFamily: 'sans-serif' }}>
       {/* SIDEBAR */}
       <div style={{ width: '300px', background: '#1e293b', color: 'white', padding: '20px', overflowY: 'auto' }}>
-        <h3>?? Neo-Panel</h3>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <h3 style={{ margin: 0 }}>?? Neo-Panel</h3>
+          <button onClick={handleLogout} style={{ background: '#ef4444', color: 'white', border: 'none', padding: '5px 10px', borderRadius: '4px', cursor: 'pointer', fontSize: '12px' }}>Logout</button>
+        </div>
         <p style={{ fontSize: '12px', color: '#94a3b8' }}>Connected to {creds.host}</p>
         
         <h4 style={{ marginTop: '30px', color: '#93c5fd' }}>?? PM2 Projects</h4>
@@ -155,9 +259,11 @@ function App() {
                 fontFamily: 'monospace', padding: '15px', border: 'none', borderRadius: '5px' 
               }} 
             />
-            <button style={{ padding: '10px', background: '#10b981', color: 'white', border: 'none', marginTop: '10px', cursor: 'pointer' }}>
-              Save to Server
-            </button>
+            <div>
+              <button onClick={saveFile} style={{ padding: '10px 20px', background: '#10b981', color: 'white', border: 'none', borderRadius: '4px', marginTop: '10px', cursor: 'pointer' }}>
+                Save to Server
+              </button>
+            </div>
           </>
         ) : (
           <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#94a3b8' }}>
