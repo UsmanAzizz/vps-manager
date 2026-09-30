@@ -41,46 +41,6 @@ function App() {
     }
     document.addEventListener("mousedown", handleClickOutside);
   
-  const renderProjectConfig = (p) => {
-    if (selectedProject?.name !== p.name) return null;
-    return (
-      <div className="pl-6 pr-2 py-2 border-l border-green-900/30 ml-3 mt-1 mb-2 bg-slate-950/50">
-        <div className="text-[10px] text-yellow-700 font-bold mb-2 flex items-center gap-2">
-          <span>--- CONFIG.SYS ---</span>
-        </div>
-        <div className="flex flex-col gap-0.5">
-          {isLoading && !currentFile && <div className="text-xs text-yellow-800">SCANNING...</div>}
-          {files.map(f => (
-            <div 
-              key={f.path} onClick={(e) => { e.stopPropagation(); openFile(f); }}
-              className={`cursor-pointer px-2 py-1 text-sm transition-colors ${currentFile === f.path ? 'text-yellow-400 bg-yellow-900/30' : 'text-yellow-700 hover:text-yellow-500 hover:bg-yellow-900/10'}`}
-            >
-              <div className="flex items-center">
-                <span className="w-6">{currentFile === f.path ? '*' : ' '}</span>
-                <span>{f.name}</span>
-              </div>
-            </div>
-          ))}
-        </div>
-        <div className="text-[10px] text-green-800 font-bold mt-4 mb-2">--- NETWORK ---</div>
-        <div 
-          onClick={(e) => {
-            e.stopPropagation();
-            setShowNginxRouter(true);
-            setLogData(null);
-            setDeployTarget(null);
-            setCurrentFile('');
-            setIsTerminalOpen(false);
-          }}
-          className={`cursor-pointer px-2 py-1 text-sm transition-colors flex items-center gap-2 ${showNginxRouter ? 'text-green-400 bg-green-900/30' : 'text-green-700 hover:text-green-500 hover:bg-green-900/10'}`}
-        >
-          <span className="w-6">{showNginxRouter ? '*' : ' '}</span>
-          <span>Nginx Router</span>
-        </div>
-      </div>
-    );
-  };
-
   return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
   useEffect(() => { document.documentElement.setAttribute('data-theme', theme); }, [theme]);
@@ -419,6 +379,47 @@ function App() {
       </div>
     );
   }
+
+
+  const renderProjectConfig = (p) => {
+    if (selectedProject?.name !== p.name) return null;
+    return (
+      <div className="pl-6 pr-2 py-2 border-l border-green-900/30 ml-3 mt-1 mb-2 bg-slate-950/50">
+        <div className="text-[10px] text-yellow-700 font-bold mb-2 flex items-center gap-2">
+          <span>--- CONFIG.SYS ---</span>
+        </div>
+        <div className="flex flex-col gap-0.5">
+          {isLoading && !currentFile && <div className="text-xs text-yellow-800">SCANNING...</div>}
+          {files.map(f => (
+            <div 
+              key={f.path} onClick={(e) => { e.stopPropagation(); openFile(f); }}
+              className={`cursor-pointer px-2 py-1 text-sm transition-colors ${currentFile === f.path ? 'text-yellow-400 bg-yellow-900/30' : 'text-yellow-700 hover:text-yellow-500 hover:bg-yellow-900/10'}`}
+            >
+              <div className="flex items-center">
+                <span className="w-6">{currentFile === f.path ? '*' : ' '}</span>
+                <span>{f.name}</span>
+              </div>
+            </div>
+          ))}
+        </div>
+        <div className="text-[10px] text-green-800 font-bold mt-4 mb-2">--- NETWORK ---</div>
+        <div 
+          onClick={(e) => {
+            e.stopPropagation();
+            setShowNginxRouter(true);
+            setLogData(null);
+            setDeployTarget(null);
+            setCurrentFile('');
+            setIsTerminalOpen(false);
+          }}
+          className={`cursor-pointer px-2 py-1 text-sm transition-colors flex items-center gap-2 ${showNginxRouter ? 'text-green-400 bg-green-900/30' : 'text-green-700 hover:text-green-500 hover:bg-green-900/10'}`}
+        >
+          <span className="w-6">{showNginxRouter ? '*' : ' '}</span>
+          <span>Nginx Router</span>
+        </div>
+      </div>
+    );
+  };
 
   return (
     <div className="flex h-screen w-full bg-black font-mono text-slate-300 overflow-hidden">
