@@ -780,7 +780,6 @@ function App() {
               onClick={() => setShowThemeMenu(!showThemeMenu)}
               title="Theme Settings"
             >
-              <Settings className="w-3 h-3" />
               <span>[THEME]</span>
             </div>
             {showThemeMenu && (
