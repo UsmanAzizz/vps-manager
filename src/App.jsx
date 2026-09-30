@@ -384,25 +384,18 @@ function App() {
   const renderProjectConfig = (p) => {
     if (selectedProject?.name !== p.name) return null;
     return (
-      <div className="pl-6 pr-2 py-2 border-l border-green-900/30 ml-3 mt-1 mb-2 bg-slate-950/50">
-        <div className="text-[10px] text-yellow-700 font-bold mb-2 flex items-center gap-2">
-          <span>--- CONFIG.SYS ---</span>
-        </div>
-        <div className="flex flex-col gap-0.5">
-          {isLoading && !currentFile && <div className="text-xs text-yellow-800">SCANNING...</div>}
-          {files.map(f => (
-            <div 
-              key={f.path} onClick={(e) => { e.stopPropagation(); openFile(f); }}
-              className={`cursor-pointer px-2 py-1 text-sm transition-colors ${currentFile === f.path ? 'text-yellow-400 bg-yellow-900/30' : 'text-yellow-700 hover:text-yellow-500 hover:bg-yellow-900/10'}`}
-            >
-              <div className="flex items-center">
-                <span className="w-6">{currentFile === f.path ? '*' : ' '}</span>
-                <span>{f.name}</span>
-              </div>
-            </div>
-          ))}
-        </div>
-        <div className="text-[10px] text-green-800 font-bold mt-4 mb-2">--- NETWORK ---</div>
+      <div className="pl-2 py-1 border-l border-green-800/60 ml-4 mt-0.5 mb-2 flex flex-col gap-0.5">
+        {isLoading && !currentFile && <div className="text-xs opacity-50 pl-2">Scanning...</div>}
+        {files.map(f => (
+          <div 
+            key={f.path} onClick={(e) => { e.stopPropagation(); openFile(f); }}
+            className={`cursor-pointer px-2 py-1.5 text-xs transition-colors flex items-center gap-2 rounded-r ${currentFile === f.path ? 'text-green-400 bg-green-900/40 font-bold' : 'text-green-600 hover:text-green-400 hover:bg-green-900/20'}`}
+          >
+            <FileCode className="w-3.5 h-3.5 shrink-0" />
+            <span className="truncate">{f.name}</span>
+          </div>
+        ))}
+        
         <div 
           onClick={(e) => {
             e.stopPropagation();
@@ -412,10 +405,10 @@ function App() {
             setCurrentFile('');
             setIsTerminalOpen(false);
           }}
-          className={`cursor-pointer px-2 py-1 text-sm transition-colors flex items-center gap-2 ${showNginxRouter ? 'text-green-400 bg-green-900/30' : 'text-green-700 hover:text-green-500 hover:bg-green-900/10'}`}
+          className={`cursor-pointer px-2 py-1.5 text-xs transition-colors flex items-center gap-2 rounded-r mt-0.5 ${showNginxRouter ? 'text-green-400 bg-green-900/40 font-bold' : 'text-green-600 hover:text-green-400 hover:bg-green-900/20'}`}
         >
-          <span className="w-6">{showNginxRouter ? '*' : ' '}</span>
-          <span>Nginx Router</span>
+          <Globe className="w-3.5 h-3.5 shrink-0" />
+          <span className="truncate">Nginx Router</span>
         </div>
       </div>
     );
