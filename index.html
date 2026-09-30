@@ -1,4 +1,4 @@
-<!doctype html>
+﻿<!doctype html>
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
@@ -7,9 +7,38 @@
     <title>Neo-Panel VPS Manager</title>
     <!-- Tambahkan Tailwind CSS dari CDN -->
     <script src="https://cdn.tailwindcss.com"></script>
+      <script>
+      tailwind.config = {
+        theme: {
+          extend: {
+            colors: {
+              black: 'var(--dyn-black)',
+              white: 'var(--dyn-white)',
+              slate: {
+                300: 'var(--dyn-slate-300)',
+                400: 'var(--dyn-slate-400)',
+                500: 'var(--dyn-slate-500)',
+                800: 'var(--dyn-slate-800)',
+                900: 'var(--dyn-slate-900)',
+                950: 'var(--dyn-slate-950)'
+              },
+              green: {
+                400: 'var(--dyn-green-400)',
+                500: 'var(--dyn-green-500)',
+                600: 'var(--dyn-green-600)',
+                700: 'var(--dyn-green-700)',
+                800: 'var(--dyn-green-800)',
+                900: 'var(--dyn-green-900)'
+              }
+            }
+          }
+        }
+      }
+    </script>
   </head>
   <body class="bg-slate-900 text-slate-100 font-sans antialiased">
     <div id="root"></div>
     <script type="module" src="/src/main.jsx"></script>
   </body>
 </html>
+

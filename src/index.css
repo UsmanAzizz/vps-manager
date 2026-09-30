@@ -1,96 +1,65 @@
-﻿@tailwind base;
-@tailwind components;
-@tailwind utilities;
-
-html, body, #root {
+﻿html, body, #root {
   height: 100%;
   width: 100%;
   margin: 0;
   padding: 0;
   overflow: hidden;
   overscroll-behavior: none;
-  background-color: var(--color-black);
+  background-color: var(--dyn-black);
 }
 
-@theme {
-  --color-black: var(--color-black-dyn);
-  --color-white: var(--color-white-dyn);
-  --color-slate-300: var(--color-slate-300-dyn);
-  --color-slate-400: var(--color-slate-400-dyn);
-  --color-slate-500: var(--color-slate-500-dyn);
-  --color-slate-800: var(--color-slate-800-dyn);
-  --color-slate-900: var(--color-slate-900-dyn);
-  --color-slate-950: var(--color-slate-950-dyn);
-  --color-green-400: var(--color-green-400-dyn);
-  --color-green-500: var(--color-green-500-dyn);
-  --color-green-600: var(--color-green-600-dyn);
-  --color-green-700: var(--color-green-700-dyn);
-  --color-green-800: var(--color-green-800-dyn);
-  --color-green-900: var(--color-green-900-dyn);
-}
-
-:root {
-  --color-black-dyn: #121212;
-  --color-white-dyn: #ffffff;
-  --color-slate-300-dyn: #cccccc;
-  --color-slate-400-dyn: #888888;
-  --color-slate-500-dyn: #888888;
-  --color-slate-800-dyn: #333333;
-  --color-slate-900-dyn: #161616;
-  --color-slate-950-dyn: #1a1a1a;
-  --color-green-400-dyn: #b5d59c;
-  --color-green-500-dyn: #a8cc8c;
-  --color-green-600-dyn: #8da876;
-  --color-green-700-dyn: #6a8256;
-  --color-green-800-dyn: #495e3a;
-  --color-green-900-dyn: #2d3c22;
+:root, [data-theme="default"] {
+  --dyn-black: #121212;
+  --dyn-white: #ffffff;
+  --dyn-slate-300: #cccccc;
+  --dyn-slate-400: #888888;
+  --dyn-slate-500: #888888;
+  --dyn-slate-800: #333333;
+  --dyn-slate-900: #161616;
+  --dyn-slate-950: #1a1a1a;
+  --dyn-green-400: #b5d59c;
+  --dyn-green-500: #a8cc8c;
+  --dyn-green-600: #8da876;
+  --dyn-green-700: #6a8256;
+  --dyn-green-800: #495e3a;
+  --dyn-green-900: #2d3c22;
 }
 
 [data-theme="light"] {
-  --color-black-dyn: #ffffff;
-  --color-white-dyn: #000000;
-  --color-slate-300-dyn: #1f2937;
-  --color-slate-400-dyn: #6b7280;
-  --color-slate-500-dyn: #6b7280;
-  --color-slate-800-dyn: #e5e7eb;
-  --color-slate-900-dyn: #f3f4f6;
-  --color-slate-950-dyn: #e5e7eb;
-  --color-green-400-dyn: #60a5fa;
-  --color-green-500-dyn: #3b82f6;
-  --color-green-600-dyn: #2563eb;
-  --color-green-700-dyn: #1d4ed8;
-  --color-green-800-dyn: #1e40af;
-  --color-green-900-dyn: #1e3a8a;
+  --dyn-black: #ffffff;
+  --dyn-white: #000000;
+  --dyn-slate-300: #374151;
+  --dyn-slate-400: #4b5563;
+  --dyn-slate-500: #6b7280;
+  --dyn-slate-800: #e5e7eb;
+  --dyn-slate-900: #f3f4f6;
+  --dyn-slate-950: #e5e7eb;
+  --dyn-green-400: #3b82f6;
+  --dyn-green-500: #2563eb;
+  --dyn-green-600: #1d4ed8;
+  --dyn-green-700: #1e40af;
+  --dyn-green-800: #1e3a8a;
+  --dyn-green-900: #172554;
 }
 
 [data-theme="blue"] {
-  --color-black-dyn: #0f172a;
-  --color-white-dyn: #ffffff;
-  --color-slate-300-dyn: #cbd5e1;
-  --color-slate-400-dyn: #94a3b8;
-  --color-slate-500-dyn: #94a3b8;
-  --color-slate-800-dyn: #334155;
-  --color-slate-900-dyn: #1e293b;
-  --color-slate-950-dyn: #0f172a;
-  --color-green-400-dyn: #38bdf8;
-  --color-green-500-dyn: #0ea5e9;
-  --color-green-600-dyn: #0284c7;
-  --color-green-700-dyn: #0369a1;
-  --color-green-800-dyn: #075985;
-  --color-green-900-dyn: #0c4a6e;
+  --dyn-black: #0f172a;
+  --dyn-white: #ffffff;
+  --dyn-slate-300: #cbd5e1;
+  --dyn-slate-400: #94a3b8;
+  --dyn-slate-500: #94a3b8;
+  --dyn-slate-800: #334155;
+  --dyn-slate-900: #1e293b;
+  --dyn-slate-950: #0f172a;
+  --dyn-green-400: #38bdf8;
+  --dyn-green-500: #0ea5e9;
+  --dyn-green-600: #0284c7;
+  --dyn-green-700: #0369a1;
+  --dyn-green-800: #075985;
+  --dyn-green-900: #0c4a6e;
 }
 
-.custom-scrollbar::-webkit-scrollbar {
-  width: 8px;
-  height: 8px;
-}
-.custom-scrollbar::-webkit-scrollbar-track {
-  background: transparent;
-}
-.custom-scrollbar::-webkit-scrollbar-thumb {
-  background: var(--color-slate-800-dyn);
-  border-radius: 4px;
-}
-.custom-scrollbar::-webkit-scrollbar-thumb:hover {
-  background: var(--color-slate-500-dyn);
-}
+.custom-scrollbar::-webkit-scrollbar { width: 8px; height: 8px; }
+.custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
+.custom-scrollbar::-webkit-scrollbar-thumb { background: var(--dyn-slate-800); border-radius: 4px; }
+.custom-scrollbar::-webkit-scrollbar-thumb:hover { background: var(--dyn-slate-500); }
