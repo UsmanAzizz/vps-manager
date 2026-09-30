@@ -736,6 +736,10 @@ function App() {
 
 `}
                 </pre>
+                <div className="mt-8 text-sm text-green-600 animate-pulse font-mono flex items-center gap-2">
+                  <span>&gt;</span>
+                  <span>Select a project from the left panel or open [TERMINAL]</span>
+                </div>
               </div>
             )}
           </div>
