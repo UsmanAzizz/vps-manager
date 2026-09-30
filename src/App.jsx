@@ -726,7 +726,7 @@ function App() {
               </div>
             ) : (
               <div className="w-full h-full flex flex-col items-center justify-center text-green-500">
-                <pre className="text-xs font-bold">
+                <pre className="text-xs font-bold -mt-16">
 {`
     _   _ _____ ___      ____   _    _   _ _____ _     
    | \\ | | ____/ _ \\    |  _ \\ / \\  | \\ | | ____| |    
