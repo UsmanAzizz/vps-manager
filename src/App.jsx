@@ -784,10 +784,13 @@ function App() {
               <span>[THEME]</span>
             </div>
             {showThemeMenu && (
-              <div className="absolute bottom-8 right-16 bg-slate-900 border border-slate-700 rounded-md shadow-xl py-2 flex flex-col z-50 text-slate-300 w-32">
-                <div className="px-4 py-2 hover:bg-slate-800 cursor-pointer" onClick={() => {setTheme('default'); setShowThemeMenu(false)}}>Retro Green</div>
-                <div className="px-4 py-2 hover:bg-slate-800 cursor-pointer" onClick={() => {setTheme('blue'); setShowThemeMenu(false)}}>Ocean Blue</div>
-                <div className="px-4 py-2 hover:bg-slate-800 cursor-pointer" onClick={() => {setTheme('light'); setShowThemeMenu(false)}}>Light Mode</div>
+              <div className="absolute bottom-8 right-16 bg-slate-900 border border-slate-700 rounded-md shadow-xl py-2 flex flex-col z-50 text-slate-300 w-44">
+                <div className="px-4 py-2 hover:bg-slate-800 cursor-pointer text-green-400" onClick={() => {setTheme('default'); setShowThemeMenu(false)}}>Default (Neo)</div>
+                <div className="px-4 py-2 hover:bg-slate-800 cursor-pointer text-[#b5d59c]" onClick={() => {setTheme('retro'); setShowThemeMenu(false)}}>Retro Green</div>
+                <div className="px-4 py-2 hover:bg-slate-800 cursor-pointer text-[#0ea5e9]" onClick={() => {setTheme('blue'); setShowThemeMenu(false)}}>Ocean Blue</div>
+                <div className="px-4 py-2 hover:bg-slate-800 cursor-pointer text-slate-900 bg-slate-200" onClick={() => {setTheme('light'); setShowThemeMenu(false)}}>Light Mode</div>
+                <div className="px-4 py-2 hover:bg-slate-800 cursor-pointer text-[#bd93f9]" onClick={() => {setTheme('dracula'); setShowThemeMenu(false)}}>Dracula</div>
+                <div className="px-4 py-2 hover:bg-slate-800 cursor-pointer text-[#00ff00]" onClick={() => {setTheme('matrix'); setShowThemeMenu(false)}}>Matrix Hacker</div>
               </div>
             )}
             <div className="flex items-center gap-1.5 text-green-800">
