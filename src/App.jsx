@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+﻿import React, { useState, useEffect } from 'react';
 import { Terminal, Server, FileCode, Play, LogOut, Loader2, CheckCircle2, AlertCircle, Folder, Settings, ShieldCheck, RefreshCw, FileText, Globe, Activity, Cpu, MemoryStick, Clock } from 'lucide-react';
 import './index.css';
 import TerminalPane from './TerminalPane';
@@ -753,7 +753,7 @@ function App() {
       </div>
       
       {/* STATUS FOOTER */}
-      <div className="h-6 bg-slate-950 border-t border-slate-800 flex items-center justify-between px-4 text-[10px] text-slate-500 shrink-0 font-bold select-none z-50 overflow-x-auto whitespace-nowrap custom-scrollbar">
+      <div className="h-6 bg-slate-950 border-t border-slate-800 flex items-center justify-between px-4 text-[10px] text-slate-500 shrink-0 font-bold select-none z-50 whitespace-nowrap">
         <div className="flex items-center gap-6">
           <div className="flex items-center gap-1.5" title="CPU Usage">
             <Cpu className="w-3 h-3" />
@@ -813,6 +813,7 @@ function App() {
 }
 
 export default App;
+
 
 
 
