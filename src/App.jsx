@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Terminal, Server, FileCode, Play, LogOut, Loader2, CheckCircle2, AlertCircle, Folder, Settings, ShieldCheck, RefreshCw, FileText, Globe, Activity, Cpu, MemoryStick, Clock } from 'lucide-react';
 import './index.css';
 import TerminalPane from './TerminalPane';
@@ -791,8 +791,9 @@ function App() {
               </div>
             )}
             <div className="flex items-center gap-1.5 text-green-800">
-            <Server className="w-3 h-3" />
-            <span>{creds.host}</span>
+              <Server className="w-3 h-3" />
+              <span>{creds.host}</span>
+            </div>
           </div>
           <div 
             className={`flex items-center gap-1.5 transition-colors ${isTerminalOpen ? 'text-green-900 cursor-not-allowed' : 'text-green-500 hover:text-green-400 cursor-pointer'}`}
@@ -812,6 +813,7 @@ function App() {
 }
 
 export default App;
+
 
 
 
