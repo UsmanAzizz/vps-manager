@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+﻿import React, { useState, useEffect } from 'react';
 import { Terminal, Server, FileCode, Play, LogOut, Loader2, CheckCircle2, AlertCircle, Folder, Settings, ShieldCheck, RefreshCw, FileText, Globe, Activity, Cpu, MemoryStick, Clock } from 'lucide-react';
 import './index.css';
 import TerminalPane from './TerminalPane';
@@ -750,7 +750,7 @@ function App() {
       </div>
       
       {/* STATUS FOOTER */}
-      <div className="h-6 bg-[#1a1a1a] border-t border-[#333] flex items-center justify-between px-4 text-[10px] text-[#888] shrink-0 font-bold select-none z-50">
+      <div className="h-6 bg-[#1a1a1a] border-t border-[#333] flex items-center justify-between px-4 text-[10px] text-[#888] shrink-0 font-bold select-none z-50 overflow-x-auto whitespace-nowrap custom-scrollbar">
         <div className="flex items-center gap-6">
           <div className="flex items-center gap-1.5" title="CPU Usage">
             <Cpu className="w-3 h-3" />
@@ -766,7 +766,7 @@ function App() {
           </div>
           <div className="flex items-center gap-1.5" title="System Uptime">
             <Clock className="w-3 h-3" />
-            <span>UPTIME: {sysInfo.uptime}</span>
+            <span>UPTIME: {sysInfo.uptime.replace(/ weeks?, /g, "w ").replace(/ days?, /g, "d ").replace(/ hours?, /g, "h ").replace(/ minutes?/g, "m")}</span>
           </div>
         </div>
         
@@ -793,3 +793,6 @@ function App() {
 }
 
 export default App;
+
+
+
