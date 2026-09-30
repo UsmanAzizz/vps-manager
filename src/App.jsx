@@ -40,7 +40,48 @@ function App() {
       }
     }
     document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
+  
+  const renderProjectConfig = (p) => {
+    if (selectedProject?.name !== p.name) return null;
+    return (
+      <div className="pl-6 pr-2 py-2 border-l border-green-900/30 ml-3 mt-1 mb-2 bg-slate-950/50">
+        <div className="text-[10px] text-yellow-700 font-bold mb-2 flex items-center gap-2">
+          <span>--- CONFIG.SYS ---</span>
+        </div>
+        <div className="flex flex-col gap-0.5">
+          {isLoading && !currentFile && <div className="text-xs text-yellow-800">SCANNING...</div>}
+          {files.map(f => (
+            <div 
+              key={f.path} onClick={(e) => { e.stopPropagation(); openFile(f); }}
+              className={`cursor-pointer px-2 py-1 text-sm transition-colors ${currentFile === f.path ? 'text-yellow-400 bg-yellow-900/30' : 'text-yellow-700 hover:text-yellow-500 hover:bg-yellow-900/10'}`}
+            >
+              <div className="flex items-center">
+                <span className="w-6">{currentFile === f.path ? '*' : ' '}</span>
+                <span>{f.name}</span>
+              </div>
+            </div>
+          ))}
+        </div>
+        <div className="text-[10px] text-green-800 font-bold mt-4 mb-2">--- NETWORK ---</div>
+        <div 
+          onClick={(e) => {
+            e.stopPropagation();
+            setShowNginxRouter(true);
+            setLogData(null);
+            setDeployTarget(null);
+            setCurrentFile('');
+            setIsTerminalOpen(false);
+          }}
+          className={`cursor-pointer px-2 py-1 text-sm transition-colors flex items-center gap-2 ${showNginxRouter ? 'text-green-400 bg-green-900/30' : 'text-green-700 hover:text-green-500 hover:bg-green-900/10'}`}
+        >
+          <span className="w-6">{showNginxRouter ? '*' : ' '}</span>
+          <span>Nginx Router</span>
+        </div>
+      </div>
+    );
+  };
+
+  return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
   useEffect(() => { document.documentElement.setAttribute('data-theme', theme); }, [theme]);
 
@@ -414,23 +455,26 @@ function App() {
           <div className="flex flex-col mt-2">
             {projects.length === 0 && !isLoading && <div className="text-sm text-green-800">No apps running in PM2</div>}
             {projects.map(p => (
-              <div 
-                key={p.name} onClick={() => handleSelectProject(p)}
-                className={`cursor-pointer px-2 py-1 transition-colors ${selectedProject?.name === p.name ? 'text-green-400 bg-green-900/30' : 'text-green-700 hover:text-green-500 hover:bg-green-900/10'}`}
-              >
-                <div className="flex items-center group">
-                  <span className="w-6">{selectedProject?.name === p.name ? '*' : ' '}</span>
-                  <strong className="font-normal text-sm flex-1">{p.name}</strong>
-                  {p.status !== 'online' && <span className="ml-auto text-xs text-red-500 mr-2">[{p.status}]</span>}
-                  
-                  <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                    <FileText 
-                      className="w-3.5 h-3.5 text-yellow-500 hover:text-yellow-300"
-                      onClick={(e) => { e.stopPropagation(); handleViewLogs(p.name); }}
-                      title="Log Sentinel"
-                    />
+              <div key={p.name}>
+                <div 
+                  onClick={() => handleSelectProject(p)}
+                  className={`cursor-pointer px-2 py-1 transition-colors ${selectedProject?.name === p.name ? 'text-green-400 bg-green-900/30' : 'text-green-700 hover:text-green-500 hover:bg-green-900/10'}`}
+                >
+                  <div className="flex items-center group">
+                    <span className="w-6">{selectedProject?.name === p.name ? '*' : ' '}</span>
+                    <strong className="font-normal text-sm flex-1">{p.name}</strong>
+                    {p.status !== 'online' && <span className="ml-auto text-xs text-red-500 mr-2">[{p.status}]</span>}
+                    
+                    <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                      <FileText 
+                        className="w-3.5 h-3.5 text-yellow-500 hover:text-yellow-300"
+                        onClick={(e) => { e.stopPropagation(); handleViewLogs(p.name); }}
+                        title="Log Sentinel"
+                      />
+                    </div>
                   </div>
                 </div>
+                {renderProjectConfig(p)}
               </div>
             ))}
           </div>
@@ -443,58 +487,27 @@ function App() {
           <div className="flex flex-col mt-2">
             {wwwProjects.length === 0 && !isLoading && <div className="text-sm text-green-800">No directories found</div>}
             {wwwProjects.map(p => (
-              <div 
-                key={p.path} onClick={() => handleSelectProject(p)}
-                className={`cursor-pointer px-2 py-1 transition-colors ${selectedProject?.name === p.name ? 'text-green-400 bg-green-900/30' : 'text-green-700 hover:text-green-500 hover:bg-green-900/10'}`}
-              >
-                <div className="flex items-center group">
-                  <span className="w-6">{selectedProject?.name === p.name ? '*' : ' '}</span>
-                  <strong className="font-normal text-sm flex-1">/{p.name}</strong>
-                  <Terminal 
-                    className="w-3.5 h-3.5 opacity-0 group-hover:opacity-100 text-green-500 hover:text-green-300 transition-opacity" 
-                    onClick={(e) => { e.stopPropagation(); handleAnalyzeDeploy(p); }} 
-                    title="Deployment Playbook"
-                  />
+              <div key={p.path}>
+                <div 
+                  onClick={() => handleSelectProject(p)}
+                  className={`cursor-pointer px-2 py-1 transition-colors ${selectedProject?.name === p.name ? 'text-green-400 bg-green-900/30' : 'text-green-700 hover:text-green-500 hover:bg-green-900/10'}`}
+                >
+                  <div className="flex items-center group">
+                    <span className="w-6">{selectedProject?.name === p.name ? '*' : ' '}</span>
+                    <strong className="font-normal text-sm flex-1">/{p.name}</strong>
+                    <Terminal 
+                      className="w-3.5 h-3.5 opacity-0 group-hover:opacity-100 text-green-500 hover:text-green-300 transition-opacity" 
+                      onClick={(e) => { e.stopPropagation(); handleAnalyzeDeploy(p); }} 
+                      title="Deployment Playbook"
+                    />
+                  </div>
                 </div>
+                {renderProjectConfig(p)}
               </div>
             ))}
           </div>
 
-          {selectedProject && (
-            <div className="mt-6">
-              <h4 className="text-xs font-bold text-yellow-600 uppercase mb-2">
-                --- CONFIG.SYS ---
-              </h4>
-              <div className="flex flex-col">
-                {isLoading && !currentFile && <div className="text-sm text-yellow-800">SCANNING...</div>}
-                {files.map(f => (
-                  <div 
-                    key={f.path} onClick={() => openFile(f)}
-                    className={`cursor-pointer px-2 py-1 transition-colors ${currentFile === f.path ? 'text-yellow-400 bg-yellow-900/30' : 'text-yellow-700 hover:text-yellow-500 hover:bg-yellow-900/10'}`}
-                  >
-                    <div className="flex items-center">
-                      <span className="w-6">{currentFile === f.path ? '*' : ' '}</span>
-                      <span className="text-sm">{f.name}</span>
-                    </div>
-                  </div>
-                ))}
-              </div>
-              <h3 className="text-xs font-bold text-green-800 px-2 mt-6 mb-2">--- NETWORK ---</h3>
-              <div 
-                onClick={() => {
-                  setShowNginxRouter(true);
-                  setLogData(null);
-                  setDeployTarget(null);
-                  setCurrentFile('');
-                  setIsTerminalOpen(false);
-                }}
-                className={`cursor-pointer px-2 py-1 transition-colors flex items-center gap-2 ${showNginxRouter ? 'text-green-400 bg-green-900/30' : 'text-green-700 hover:text-green-500 hover:bg-green-900/10'}`}
-              >
-                <Globe className="w-4 h-4" />
-                <span className="text-sm">Nginx Router</span>
-              </div>
-            </div>
-          )}
+          
         </div>
       </div>
 
