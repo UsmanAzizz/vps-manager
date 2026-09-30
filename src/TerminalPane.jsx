@@ -2,23 +2,25 @@ import React, { useEffect, useRef } from 'react';
 import { Terminal } from 'xterm';
 import { FitAddon } from 'xterm-addon-fit';
 import { io } from 'socket.io-client';
+import { invoke } from '@tauri-apps/api/core';
+import { listen } from '@tauri-apps/api/event';
 import 'xterm/css/xterm.css';
+
+const isTauri = window.__TAURI_INTERNALS__ !== undefined;
 
 export default function TerminalPane() {
   const terminalRef = useRef(null);
   const socketRef = useRef(null);
   const termInstance = useRef(null);
   const fitAddon = useRef(null);
+  const initialized = useRef(false);
 
   useEffect(() => {
+
     // Initialize xterm.js
     const term = new Terminal({
       cursorBlink: true,
-      theme: {
-        background: '#000000',
-        foreground: '#22c55e', // text-green-500
-        cursor: '#22c55e'
-      },
+      theme: { background: '#000000', foreground: '#22c55e', cursor: '#22c55e' },
       fontFamily: 'monospace',
       fontSize: 13
     });
@@ -26,7 +28,8 @@ export default function TerminalPane() {
     term.loadAddon(fit);
     term.open(terminalRef.current);
     
-    // Slight delay to ensure parent container is rendered for fitting
+    term.write('\x1b[33mConnecting to terminal...\x1b[0m\r\n');
+
     setTimeout(() => {
       if (terminalRef.current && terminalRef.current.clientWidth > 0) {
         try { fit.fit(); } catch(e) {}
@@ -36,48 +39,83 @@ export default function TerminalPane() {
     termInstance.current = term;
     fitAddon.current = fit;
 
-    // Connect to Socket.io
-    const socket = io('http://localhost:3001');
-    socketRef.current = socket;
+    let isMounted = true;
+    let unlistenTauri = null;
+    let socket = null;
 
-    socket.on('connect', () => {
-      socket.emit('terminal:start', { cols: term.cols, rows: term.rows });
-    });
+    const setupTerminal = async () => {
+      if (isTauri) {
+        try {
+          const unlisten = await listen('terminal-data', (event) => {
+            term.write(event.payload);
+          });
+          if (!isMounted) {
+            unlisten();
+          } else {
+            unlistenTauri = unlisten;
+          }
 
-    socket.on('terminal:data', (data) => {
-      term.write(data);
-    });
+          term.onData((data) => {
+            invoke('write_terminal', { data }).catch(console.error);
+          });
 
-    term.onData((data) => {
-      socket.emit('terminal:data', data);
-    });
+          // Wait for a proper fit before starting
+          let cols = term.cols || 80;
+          let rows = term.rows || 24;
+          await invoke('start_terminal', { cols, rows });
+        } catch (error) {
+          term.write(`\r\n\x1b[31mTerminal Error: ${error}\x1b[0m\r\n`);
+        }
+      } else {
+        socket = io('http://localhost:3001');
+        socketRef.current = socket;
+        
+        socket.on('connect', () => {
+          socket.emit('terminal:start', { cols: term.cols, rows: term.rows });
+        });
 
-    // Handle Resize
-    const handleResize = () => {
+        socket.on('terminal:data', (data) => {
+          term.write(data);
+        });
+
+        term.onData((data) => {
+          socket.emit('terminal:data', data);
+        });
+      }
+    };
+
+    setupTerminal();
+
+    const handleResize = async () => {
       if (terminalRef.current && terminalRef.current.clientWidth > 0) {
         try {
           fit.fit();
-          socket.emit('terminal:resize', { cols: term.cols, rows: term.rows });
+          if (isTauri) {
+            const { invoke } = await import('@tauri-apps/api/core');
+            invoke('resize_terminal', { cols: term.cols, rows: term.rows });
+          } else if (socket) {
+            socket.emit('terminal:resize', { cols: term.cols, rows: term.rows });
+          }
         } catch (e) {}
       }
     };
 
     window.addEventListener('resize', handleResize);
     
-    // Auto-fit when container becomes visible or changes size
     let observer;
     if (window.ResizeObserver && terminalRef.current) {
       observer = new ResizeObserver(() => {
-        // Small timeout to let browser calculate new DOM size
         setTimeout(() => handleResize(), 20);
       });
       observer.observe(terminalRef.current);
     }
 
     return () => {
+      isMounted = false;
       window.removeEventListener('resize', handleResize);
       if (observer) observer.disconnect();
-      socket.disconnect();
+      if (socket) socket.disconnect();
+      if (unlistenTauri) unlistenTauri();
       term.dispose();
     };
   }, []);

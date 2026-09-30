@@ -1,7 +1,10 @@
 import React, { useState, useEffect } from 'react';
-import { Terminal, Server, FileCode, Play, LogOut, Loader2, CheckCircle2, AlertCircle, Folder, Settings, ShieldCheck, RefreshCw } from 'lucide-react';
+import { Terminal, Server, FileCode, Play, LogOut, Loader2, CheckCircle2, AlertCircle, Folder, Settings, ShieldCheck, RefreshCw, FileText, Globe, Activity, Cpu, MemoryStick, Clock } from 'lucide-react';
 import './index.css';
 import TerminalPane from './TerminalPane';
+import { invoke } from '@tauri-apps/api/core';
+
+import { api } from './api';
 
 function App() {
   const [step, setStep] = useState(0); 
@@ -19,13 +22,164 @@ function App() {
   const [isSaving, setIsSaving] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [isTerminalOpen, setIsTerminalOpen] = useState(false);
+  const [deployTarget, setDeployTarget] = useState(null);
+  const [deploySteps, setDeploySteps] = useState([]);
+  const [logData, setLogData] = useState(null);
+  const [showNginxRouter, setShowNginxRouter] = useState(false);
+  const [nginxDomain, setNginxDomain] = useState('');
+  const [nginxPort, setNginxPort] = useState('');
+  const [nginxResult, setNginxResult] = useState('');
+  const [sysInfo, setSysInfo] = useState({ ramPercent: 0, ramText: '0G / 0G', cpuLoad: '0.00', cpuCores: '0', cpuUsg: '0', uptime: 'N/A' });
+
+  useEffect(() => {
+    let interval;
+    if (step === 2) {
+      // Fetch after a short delay to avoid colliding with initial scanProjects
+      setTimeout(fetchSysInfo, 3000);
+      // Poll every 30 seconds to prevent SSH connection flooding (os error 10053)
+      interval = setInterval(fetchSysInfo, 30000);
+    }
+    return () => clearInterval(interval);
+  }, [step]);
+
+  const fetchSysInfo = async () => {
+    try {
+      const info = await invoke('ssh_get_sysinfo');
+      setSysInfo(info);
+    } catch (e) {
+      console.error("Failed to fetch sysinfo", e);
+    }
+  };
+
+
+
+  const handleCloseCurrentView = () => {
+    setCurrentFile('');
+    setFileContent('');
+    setShowNginxRouter(false);
+    setLogData(null);
+    setDeployTarget(null);
+  };
+
+  const handleViewLogs = async (appName) => {
+    try {
+      setStatus('FETCHING LOGS...');
+      handleCloseCurrentView();
+      setIsTerminalOpen(false);
+      
+      const logs = await invoke('ssh_get_pm2_logs', { name: appName });
+      setLogData({ name: appName, logs });
+      setStatus('');
+    } catch (err) {
+      console.error(err);
+      setStatus(`LOGS FAILED: ${err}`);
+    }
+  };
+
+  const handleAnalyzeDeploy = async (project) => {
+    try {
+      setStatus('ANALYZING PROJECT...');
+      handleCloseCurrentView();
+      setIsTerminalOpen(false);
+
+      const result = await invoke('ssh_analyze_project', { path: project.path });
+      
+      let steps = [];
+      steps.push({ id: 'cd', name: 'Navigate to Directory', cmd: `cd ${project.path}`, checked: true, readonly: true });
+      
+      if (result.isGit) {
+        steps.push({ id: 'git', name: 'Pull Latest Source (Git)', cmd: 'git pull origin main', checked: true });
+      } else {
+        steps.push({ id: 'git_init', name: 'Git is not initialized', cmd: 'git init', checked: false });
+      }
+      
+      if (result.hasNpm) {
+        if (result.buildDir && result.buildDir !== '.') {
+          steps.push({ id: 'cd_frontend', name: `Navigate to Subdirectory (${result.buildDir})`, cmd: `cd ${result.buildDir}`, checked: true, readonly: true });
+        }
+
+        steps.push({ id: 'npm', name: 'Install Dependencies', cmd: 'npm install', checked: false });
+        
+        // --- MULTI-BUILD DETECTION (FIXED VALUES) ---
+        const buildScripts = (result.packageScripts || []).filter(s => s.toLowerCase().includes('build'));
+
+        if (result.envBuildCmd) {
+          steps.push({ id: 'build_env', name: 'Build Project (.env Override)', cmd: result.envBuildCmd, checked: true });
+        } else if (buildScripts.length > 0) {
+          // Generate a separate checkbox for EACH build script (Dual Build support)
+          buildScripts.forEach((scriptName, index) => {
+            steps.push({ 
+              id: `build_${scriptName}`, 
+              name: `Build Project (${scriptName})`, 
+              cmd: `npm run ${scriptName}`, 
+              checked: index === 0 // Default check the first one
+            });
+          });
+        } else if (result.isVite) {
+          steps.push({ id: 'build_vite', name: 'Build Project (Vite Native)', cmd: 'vite build', checked: true });
+        } else {
+          steps.push({ id: 'build_fallback', name: 'Build Project (Default)', cmd: 'npm run build', checked: true });
+        }
+
+        if (result.buildDir && result.buildDir !== '.') {
+          steps.push({ id: 'cd_root', name: 'Return to Project Root', cmd: `cd ${project.path}`, checked: true, readonly: true });
+        }
+      }
+      
+      if (result.hasPm2) {
+        steps.push({ id: 'pm2', name: 'Restart PM2 Process', cmd: `pm2 restart all`, checked: true });
+      } else {
+        steps.push({ id: 'pm2_start', name: 'Start PM2 Process', cmd: `pm2 start npm --name "${project.name}" -- start`, checked: false });
+      }
+
+      setDeploySteps(steps);
+      setDeployTarget(project);
+      setStatus('');
+    } catch (err) {
+      console.error(err);
+      setStatus(`ANALYZE FAILED: ${err}`);
+    }
+  };
+
+  const executeDeploy = () => {
+    const selectedCommands = deploySteps.filter(s => s.checked || s.readonly).map(s => s.cmd);
+    if (selectedCommands.length === 0) return;
+    
+    // Join commands with &&
+    const fullCommand = selectedCommands.join(' && ');
+    
+    setIsTerminalOpen(true);
+    setDeployTarget(null); // Close the deploy planner
+    
+    // Wait for terminal to be visible and ready, then execute
+    setTimeout(() => {
+      invoke('write_terminal', { data: fullCommand + '\r\n' });
+    }, 500);
+  };
+
+  const handleApplyNginx = async () => {
+    if (!nginxDomain || !nginxPort) return;
+    setStatus('CONFIGURING NGINX...');
+    setNginxResult('');
+    try {
+      const result = await invoke('ssh_add_nginx_domain', { 
+        domain: nginxDomain, 
+        port: nginxPort 
+      });
+      setNginxResult(result);
+      setStatus('');
+    } catch (err) {
+      console.error(err);
+      setNginxResult(`ERROR:\n${err}`);
+      setStatus('NGINX FAILED');
+    }
+  };
 
   useEffect(() => { checkConnection(); }, []);
 
   const checkConnection = async () => {
     try {
-      const res = await fetch('http://localhost:3001/api/status');
-      const data = await res.json();
+      const data = await api.checkStatus();
       if (data.connected) {
         setCreds({ ...creds, host: data.host });
         setStep(2); scanProjects();
@@ -46,10 +200,7 @@ function App() {
   const autoLogin = async (credentials) => {
     setIsLoading(true); setStatus('Auto-connecting to VPS...');
     try {
-      const res = await fetch('http://localhost:3001/api/connect', {
-        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(credentials)
-      });
-      const data = await res.json();
+      const data = await api.login(credentials);
       if (data.success) { setStep(2); scanProjects(); } 
       else { setStatus('Auto-login gagal: ' + data.error); setStep(1); }
     } catch (err) { setStatus('Error koneksi: ' + err.message); setStep(1); }
@@ -60,10 +211,7 @@ function App() {
     e.preventDefault();
     setIsLoading(true); setStatus('Menghubungkan via SSH...');
     try {
-      const res = await fetch('http://localhost:3001/api/connect', {
-        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(creds)
-      });
-      const data = await res.json();
+      const data = await api.login(creds);
       if (data.success) {
         if (rememberMe) localStorage.setItem('neo_vps_creds', JSON.stringify(creds));
         else localStorage.removeItem('neo_vps_creds');
@@ -74,7 +222,7 @@ function App() {
   };
 
   const handleLogout = async () => {
-    await fetch('http://localhost:3001/api/logout', { method: 'POST' });
+    await api.logout();
     localStorage.removeItem('neo_vps_creds');
     setCreds({ host: '', port: '22', username: 'root', password: '' });
     setRememberMe(false); setStep(1); setProjects([]); setWwwProjects([]); setFiles([]);
@@ -83,8 +231,7 @@ function App() {
 
   const scanProjects = async () => {
     setStatus('DETECTING PROCESSES & DIRS...'); setIsLoading(true);
-    const res = await fetch('http://localhost:3001/api/scan');
-    const data = await res.json();
+    const data = await api.scan();
     if (data.success) {
       const uniqueProjects = data.projects.reduce((acc, curr) => {
         if (!acc.find(p => p.name === curr.name)) {
@@ -104,21 +251,16 @@ function App() {
   const handleSelectProject = async (proj) => {
     setSelectedProject(proj); setFiles([]); setFileContent(''); setCurrentFile('');
     setStatus('LOCATING CONFIG FILES...'); setIsLoading(true);
-    const res = await fetch('http://localhost:3001/api/project-files', {
-      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ projectPath: proj.path, portOrName: proj.name })
-    });
-    const data = await res.json();
+    const data = await api.getProjectFiles(proj);
     if (data.success) { setFiles(data.files); setStatus(''); }
     setIsLoading(false);
   };
 
   const openFile = async (file) => {
+    handleCloseCurrentView();
     setIsTerminalOpen(false);
     setStatus('READING FILE...'); setIsLoading(true);
-    const res = await fetch('http://localhost:3001/api/read-file', {
-      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ path: file.path })
-    });
-    const data = await res.json();
+    const data = await api.readFile(file.path);
     if (data.data !== undefined) {
       setFileContent(data.data); setCurrentFile(file.path); setStatus('');
     } else setStatus('FAILED: ' + data.error);
@@ -127,14 +269,41 @@ function App() {
 
   const saveFile = async () => {
     setIsSaving(true); setStatus('SAVING TO SERVER...');
-    const res = await fetch('http://localhost:3001/api/write-file', {
-      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ path: currentFile, content: fileContent })
-    });
-    const data = await res.json();
+    const data = await api.saveFile(currentFile, fileContent);
     if (data.success) { setStatus('SAVED!'); setTimeout(() => setStatus(''), 2000); }
     else setStatus('FAILED: ' + data.error);
     setIsSaving(false);
   };
+
+  // Global Keyboard Shortcuts
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      // Ctrl + J to toggle terminal
+      if (e.ctrlKey && e.key.toLowerCase() === 'j') {
+        e.preventDefault();
+        setIsTerminalOpen(prev => !prev);
+      }
+      // Escape to close terminal, deployment playbook, nano, nginx, logs
+      if (e.key === 'Escape') {
+        setIsTerminalOpen(false);
+        setCurrentFile('');
+        setFileContent('');
+        setShowNginxRouter(false);
+        setLogData(null);
+        setDeployTarget(null);
+      }
+      // Ctrl + S to save file
+      if (e.ctrlKey && e.key.toLowerCase() === 's') {
+        e.preventDefault();
+        if (currentFile) {
+          saveFile();
+        }
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown, true);
+    return () => window.removeEventListener('keydown', handleKeyDown, true);
+  }, [currentFile, fileContent]);
 
   if (step === 0) return (
     <div className="flex h-screen w-full items-center justify-center bg-slate-900 text-slate-300">
@@ -198,18 +367,20 @@ function App() {
   }
 
   return (
-    <div className="flex h-screen w-full bg-black font-mono text-green-500 overflow-hidden">
-      {/* SIDEBAR */}
-      <div className="w-80 bg-black border-r border-green-900/30 flex flex-col">
+    <div className="flex h-screen w-full bg-black font-mono text-[#cccccc] overflow-hidden">
+        {/* SIDEBAR */}
+        <div className="w-80 bg-[#161616] border-r border-green-900/30 flex flex-col shrink-0 h-full">
         <div className="h-10 px-4 border-b border-green-900/30 flex justify-between items-center">
           <div className="flex items-center text-green-400">
             <h3 className="font-bold tracking-widest text-lg leading-none pt-0.5">
               NeoPanel
             </h3>
           </div>
-          <button onClick={handleLogout} className="text-red-600 hover:text-red-400 font-bold text-sm leading-none pt-0.5" title="Logout">
-            [EXIT]
-          </button>
+          <div className="flex items-center gap-3">
+            <button onClick={handleLogout} className="text-red-600 hover:text-red-400 font-bold text-sm leading-none pt-0.5" title="Logout">
+              [EXIT]
+            </button>
+          </div>
         </div>
 
         <div className="px-4 py-3 flex items-center justify-between border-b border-green-900/30">
@@ -234,10 +405,18 @@ function App() {
                 key={p.name} onClick={() => handleSelectProject(p)}
                 className={`cursor-pointer px-2 py-1 transition-colors ${selectedProject?.name === p.name ? 'text-green-400 bg-green-900/30' : 'text-green-700 hover:text-green-500 hover:bg-green-900/10'}`}
               >
-                <div className="flex items-center">
+                <div className="flex items-center group">
                   <span className="w-6">{selectedProject?.name === p.name ? '*' : ' '}</span>
-                  <strong className="font-normal text-sm">{p.name}</strong>
-                  {p.status !== 'online' && <span className="ml-auto text-xs text-red-500">[{p.status}]</span>}
+                  <strong className="font-normal text-sm flex-1">{p.name}</strong>
+                  {p.status !== 'online' && <span className="ml-auto text-xs text-red-500 mr-2">[{p.status}]</span>}
+                  
+                  <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                    <FileText 
+                      className="w-3.5 h-3.5 text-yellow-500 hover:text-yellow-300"
+                      onClick={(e) => { e.stopPropagation(); handleViewLogs(p.name); }}
+                      title="Log Sentinel"
+                    />
+                  </div>
                 </div>
               </div>
             ))}
@@ -255,9 +434,14 @@ function App() {
                 key={p.path} onClick={() => handleSelectProject(p)}
                 className={`cursor-pointer px-2 py-1 transition-colors ${selectedProject?.name === p.name ? 'text-green-400 bg-green-900/30' : 'text-green-700 hover:text-green-500 hover:bg-green-900/10'}`}
               >
-                <div className="flex items-center">
+                <div className="flex items-center group">
                   <span className="w-6">{selectedProject?.name === p.name ? '*' : ' '}</span>
-                  <strong className="font-normal text-sm">/{p.name}</strong>
+                  <strong className="font-normal text-sm flex-1">/{p.name}</strong>
+                  <Terminal 
+                    className="w-3.5 h-3.5 opacity-0 group-hover:opacity-100 text-green-500 hover:text-green-300 transition-opacity" 
+                    onClick={(e) => { e.stopPropagation(); handleAnalyzeDeploy(p); }} 
+                    title="Deployment Playbook"
+                  />
                 </div>
               </div>
             ))}
@@ -282,20 +466,43 @@ function App() {
                   </div>
                 ))}
               </div>
+              <h3 className="text-xs font-bold text-green-800 px-2 mt-6 mb-2">--- NETWORK ---</h3>
+              <div 
+                onClick={() => {
+                  setShowNginxRouter(true);
+                  setLogData(null);
+                  setDeployTarget(null);
+                  setCurrentFile('');
+                  setIsTerminalOpen(false);
+                }}
+                className={`cursor-pointer px-2 py-1 transition-colors flex items-center gap-2 ${showNginxRouter ? 'text-green-400 bg-green-900/30' : 'text-green-700 hover:text-green-500 hover:bg-green-900/10'}`}
+              >
+                <Globe className="w-4 h-4" />
+                <span className="text-sm">Nginx Router</span>
+              </div>
             </div>
           )}
         </div>
       </div>
 
-      {/* EDITOR AREA */}
-      <div className="flex-1 flex flex-col bg-black">
+      {/* RIGHT PANEL (Editor + Footer) */}
+      <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
+      
+        {/* EDITOR AREA */}
+        <div className="flex-1 flex flex-col bg-black min-w-0 overflow-hidden">
         {/* Header */}
-        <div className="h-10 border-b border-green-900/30 flex items-center justify-between px-4 text-green-600">
-          <div className="flex items-center gap-2 text-sm">
+        <div className="h-10 border-b border-green-900/30 flex items-center justify-between px-4 text-green-600 shrink-0">
+          <div className="flex items-center gap-2 text-sm shrink-0">
             {isTerminalOpen ? (
               <span>$ terminal</span>
             ) : currentFile ? (
               <span>$ nano {currentFile}</span>
+            ) : showNginxRouter ? (
+              <span>$ nginx-router</span>
+            ) : logData ? (
+              <span>$ pm2 logs {logData.name}</span>
+            ) : deployTarget ? (
+              <span>$ deploy-playbook {deployTarget.name}</span>
             ) : (
               <span>$ _</span>
             )}
@@ -303,30 +510,36 @@ function App() {
           
           <div className="flex items-center gap-4">
             {status && <span className="text-sm animate-pulse text-yellow-500">{status}</span>}
-            <button 
-              onClick={() => setIsTerminalOpen(!isTerminalOpen)}
-              className={`text-sm font-bold transition-colors ${isTerminalOpen ? 'text-red-500 hover:text-red-400' : 'text-green-600 hover:text-green-400'}`}
-              title="Toggle Terminal"
-            >
-              {isTerminalOpen ? '[CLOSE TERMINAL]' : '[TERMINAL]'}
-            </button>
-            {currentFile && (
+            
+            {isTerminalOpen && (
               <button 
-                onClick={() => { setCurrentFile(''); setFileContent(''); }}
-                disabled={isTerminalOpen}
-                className="text-yellow-600 hover:text-yellow-400 disabled:opacity-50 disabled:cursor-not-allowed text-sm"
-                title="Close File"
+                onClick={() => setIsTerminalOpen(false)}
+                className="text-red-500 hover:text-red-400 text-sm font-bold"
+                title="Close Terminal"
+              >
+                [CLOSE TERMINAL]
+              </button>
+            )}
+
+            {(currentFile || showNginxRouter || logData || deployTarget) && !isTerminalOpen && (
+              <button 
+                onClick={handleCloseCurrentView}
+                className="text-yellow-600 hover:text-yellow-400 text-sm font-bold"
+                title="Close Current View"
               >
                 [CLOSE]
               </button>
             )}
-            <button 
-              onClick={saveFile} 
-              disabled={isTerminalOpen || !currentFile || isSaving}
-              className="text-green-600 hover:text-green-400 disabled:opacity-50 disabled:cursor-not-allowed text-sm"
-            >
-              {isSaving ? '[SAVING...]' : '[SAVE]'}
-            </button>
+            
+            {currentFile && !isTerminalOpen && (
+              <button 
+                onClick={saveFile} 
+                disabled={isSaving}
+                className="text-green-600 hover:text-green-400 disabled:opacity-50 disabled:cursor-not-allowed text-sm font-bold"
+              >
+                {isSaving ? '[SAVING...]' : '[SAVE]'}
+              </button>
+            )}
           </div>
         </div>
 
@@ -338,8 +551,154 @@ function App() {
           `}</style>
           
           {/* Editor View */}
-          <div className={`${!isTerminalOpen ? 'flex-1 flex flex-col relative overflow-hidden' : 'hidden'}`}>
-            {currentFile ? (
+          <div className={`${!isTerminalOpen ? 'flex-1 flex flex-col relative' : 'absolute inset-0 opacity-0 pointer-events-none z-[-1]'} overflow-hidden`}>
+            {showNginxRouter ? (
+              <div className="w-full h-full flex flex-col p-6 bg-black text-green-500 overflow-y-auto custom-scrollbar relative">
+                <div className="flex items-center justify-between border-b border-green-900 pb-2 mb-6">
+                  <h2 className="text-xl font-bold uppercase text-green-400 flex items-center gap-2">
+                    <Globe className="w-6 h-6" />
+                    NGINX VISUAL ROUTER
+                  </h2>
+                </div>
+                
+                <div className="max-w-xl w-full">
+                  <p className="text-green-700 text-sm mb-8 font-mono">
+                    Automatically generate server blocks, map domains to internal ports, and reload Nginx.
+                    Compatible with both Debian/Ubuntu and RHEL architectures.
+                  </p>
+
+                  <div className="flex flex-col gap-6 font-mono">
+                    <div className="flex flex-col gap-2">
+                      <label className="text-sm font-bold text-green-600">DOMAIN NAME</label>
+                      <input 
+                        type="text" 
+                        value={nginxDomain}
+                        onChange={e => setNginxDomain(e.target.value)}
+                        placeholder="e.g., api.example.com"
+                        className="bg-black border border-green-900 p-2 text-green-400 focus:outline-none focus:border-green-500 placeholder-green-900/50"
+                        spellCheck="false"
+                      />
+                    </div>
+                    
+                    <div className="flex flex-col gap-2">
+                      <label className="text-sm font-bold text-green-600">TARGET PORT (Localhost)</label>
+                      <input 
+                        type="text" 
+                        value={nginxPort}
+                        onChange={e => setNginxPort(e.target.value.replace(/\D/g, ''))}
+                        placeholder="e.g., 3000"
+                        className="bg-black border border-green-900 p-2 text-green-400 focus:outline-none focus:border-green-500 placeholder-green-900/50"
+                      />
+                    </div>
+
+                    <button 
+                      onClick={handleApplyNginx}
+                      disabled={!nginxDomain || !nginxPort || status !== ''}
+                      className="border border-green-700 text-green-500 p-3 mt-4 hover:bg-green-900/30 transition-colors font-bold disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      [APPLY NGINX CONFIGURATION]
+                    </button>
+
+                    {nginxResult && (
+                      <div className={`mt-4 p-4 border ${nginxResult.startsWith('ERROR') ? 'border-red-900 text-red-500 bg-red-900/10' : 'border-green-900 text-green-400 bg-green-900/10'} text-xs whitespace-pre-wrap`}>
+                        {nginxResult}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+            ) : logData ? (
+              <div className="w-full h-full flex flex-col p-6 bg-black text-gray-300 overflow-y-auto custom-scrollbar relative">
+                <div className="flex items-center justify-between border-b border-green-900 pb-2 mb-4">
+                  <h2 className="text-xl font-bold uppercase text-yellow-500 flex items-center gap-2">
+                    <FileText className="w-5 h-5" />
+                    LOG SENTINEL: {logData.name}
+                  </h2>
+                  <div className="flex gap-4">
+                    <button 
+                      onClick={() => handleViewLogs(logData.name)}
+                      className="text-green-500 hover:text-green-300 font-bold"
+                    >
+                      [REFRESH]
+                    </button>
+                  </div>
+                </div>
+                <div className="font-mono text-xs whitespace-pre">
+                  {logData.logs.split('\n').map((line, idx) => {
+                    const isError = line.toLowerCase().includes('error') || line.toLowerCase().includes('exception') || line.toLowerCase().includes('fail');
+                    return (
+                      <div key={idx} className={`${isError ? 'text-red-500 font-bold bg-red-900/20' : 'text-green-600'} hover:bg-green-900/10 px-1 rounded`}>
+                        {line}
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            ) : deployTarget ? (
+              <div className="w-full h-full flex flex-col p-6 bg-black text-green-500 overflow-y-auto custom-scrollbar relative">
+                <h2 className="text-xl font-bold mb-2 uppercase text-green-400">
+                  --- DEPLOYMENT PLAYBOOK ---
+                </h2>
+                <div className="text-sm text-green-700 mb-6 font-mono">
+                  Target: {deployTarget.path}
+                </div>
+                
+                <div className="flex flex-col gap-4 flex-1 max-w-2xl">
+                  {deploySteps.map((step, idx) => (
+                    <div 
+                      key={step.id} 
+                      className={`flex flex-col p-3 border ${step.checked || step.readonly ? 'border-green-500/50 bg-green-900/10' : 'border-green-900/30 opacity-50'} rounded`}
+                    >
+                      <label className="flex items-center gap-3 cursor-pointer">
+                        <input 
+                          type={step.id.startsWith('build_') ? "radio" : "checkbox"} 
+                          name={step.id.startsWith('build_') ? "build_group" : undefined}
+                          className="accent-green-500 w-4 h-4 cursor-pointer"
+                          checked={step.checked || step.readonly}
+                          disabled={step.readonly}
+                          onChange={(e) => {
+                            const isChecked = e.target.checked;
+                            const newSteps = deploySteps.map(s => ({ ...s }));
+                            
+                            if (step.id.startsWith('build_')) {
+                              newSteps.forEach(s => {
+                                if (s.id.startsWith('build_')) {
+                                  s.checked = (s.id === step.id);
+                                }
+                              });
+                            } else {
+                              newSteps[idx].checked = isChecked;
+                            }
+                            
+                            setDeploySteps(newSteps);
+                          }}
+                        />
+                        <div className="flex flex-col flex-1">
+                          <span className="font-bold text-sm text-green-400">{step.name}</span>
+                          <span className="text-xs text-green-700 font-mono mt-1">{step.cmd}</span>
+                        </div>
+                      </label>
+                    </div>
+                  ))}
+                  
+                  <div className="mt-8 flex items-center gap-4">
+                    <button 
+                      onClick={executeDeploy}
+                      className="px-6 py-2 bg-green-900/50 text-green-400 font-bold border border-green-500 hover:bg-green-500 hover:text-black transition-colors rounded uppercase flex items-center gap-2"
+                    >
+                      <Play className="w-4 h-4" />
+                      EXECUTE DEPLOYMENT
+                    </button>
+                    <button 
+                      onClick={() => setDeployTarget(null)}
+                      className="px-6 py-2 bg-transparent text-green-700 font-bold hover:text-green-500 transition-colors uppercase"
+                    >
+                      CANCEL
+                    </button>
+                  </div>
+                </div>
+              </div>
+            ) : currentFile ? (
               <div className="w-full h-full overflow-auto custom-scrollbar relative">
                 <div className="relative min-w-full inline-block min-h-full">
                   <pre 
@@ -363,8 +722,8 @@ function App() {
                 </div>
               </div>
             ) : (
-              <div className="w-full h-full flex flex-col items-center justify-center text-green-900">
-                <pre className="text-xs">
+              <div className="w-full h-full flex flex-col items-center justify-center text-green-500">
+                <pre className="text-xs font-bold -mt-32">
 {`
     _   _ _____ ___      ____   _    _   _ _____ _     
    | \\ | | ____/ _ \\    |  _ \\ / \\  | \\ | | ____| |    
@@ -374,17 +733,60 @@ function App() {
 
 `}
                 </pre>
-                <p className="mt-4 text-sm animate-pulse">Awaiting command...</p>
+                <div className="mt-8 text-sm text-green-600 animate-pulse font-mono flex items-center gap-2">
+                  <span>&gt;</span>
+                  <span>System ready. Select a project from the left panel or open [TERMINAL]</span>
+                </div>
               </div>
             )}
           </div>
 
           {/* Terminal View */}
-          <div className={`${isTerminalOpen ? 'flex-1 relative w-full h-full' : 'hidden'}`}>
+          <div className={`${isTerminalOpen ? 'flex-1 relative' : 'absolute inset-0 opacity-0 pointer-events-none z-[-1]'} w-full h-full min-w-0 min-h-0 overflow-hidden`}>
             <TerminalPane />
           </div>
 
         </div>
+      </div>
+      
+      {/* STATUS FOOTER */}
+      <div className="h-6 bg-[#1a1a1a] border-t border-[#333] flex items-center justify-between px-4 text-[10px] text-[#888] shrink-0 font-bold select-none z-50">
+        <div className="flex items-center gap-6">
+          <div className="flex items-center gap-1.5" title="CPU Usage">
+            <Cpu className="w-3 h-3" />
+            <span>CPU: {sysInfo.cpuUsg}% ({sysInfo.cpuCores}C)</span>
+          </div>
+          <div className="flex items-center gap-1.5" title="CPU Load (1m)">
+            <Activity className="w-3 h-3" />
+            <span>LOAD: {sysInfo.cpuLoad}</span>
+          </div>
+          <div className="flex items-center gap-1.5" title="RAM Usage">
+            <MemoryStick className="w-3 h-3" />
+            <span>RAM: {sysInfo.ramText} ({sysInfo.ramPercent}%)</span>
+          </div>
+          <div className="flex items-center gap-1.5" title="System Uptime">
+            <Clock className="w-3 h-3" />
+            <span>UPTIME: {sysInfo.uptime}</span>
+          </div>
+        </div>
+        
+        <div className="flex items-center gap-6">
+          <div className="flex items-center gap-1.5 text-green-800">
+            <Server className="w-3 h-3" />
+            <span>{creds.host}</span>
+          </div>
+          <div 
+            className={`flex items-center gap-1.5 transition-colors ${isTerminalOpen ? 'text-green-900 cursor-not-allowed' : 'text-green-500 hover:text-green-400 cursor-pointer'}`}
+            onClick={() => {
+              if (!isTerminalOpen) setIsTerminalOpen(true);
+            }}
+            title={isTerminalOpen ? "Terminal is open" : "Open Terminal"}
+          >
+            <Terminal className="w-3 h-3" />
+            <span>[TERMINAL]</span>
+          </div>
+        </div>
+      </div>
       </div>
     </div>
   );

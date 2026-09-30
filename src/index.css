@@ -2,6 +2,32 @@
 @tailwind components;
 @tailwind utilities;
 
+html, body, #root {
+  height: 100%;
+  width: 100%;
+  margin: 0;
+  padding: 0;
+  overflow: hidden;
+  overscroll-behavior: none;
+  background-color: #121212;
+}
+
+@theme {
+  --color-black: #121212;
+  --color-green-400: #b5d59c;
+  --color-green-500: #a8cc8c;
+  --color-green-600: #8da876;
+  --color-green-700: #6a8256;
+  --color-green-800: #495e3a;
+  --color-green-900: #2d3c22;
+  --color-yellow-400: #e8d082;
+  --color-yellow-500: #d6b450;
+  --color-yellow-600: #b59230;
+  --color-red-400: #e89582;
+  --color-red-500: #d66450;
+  --color-red-600: #b53828;
+}
+
 .custom-scrollbar::-webkit-scrollbar {
   width: 8px;
   height: 8px;
