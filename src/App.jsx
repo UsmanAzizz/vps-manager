@@ -746,7 +746,7 @@ function App() {
 
           {/* Terminal View */}
           <div className={`${isTerminalOpen ? 'flex-1 relative' : 'absolute inset-0 opacity-0 pointer-events-none z-[-1]'} w-full h-full min-w-0 min-h-0 overflow-hidden`}>
-            <TerminalPane />
+            <TerminalPane theme={theme} />
           </div>
 
         </div>

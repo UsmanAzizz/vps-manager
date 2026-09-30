@@ -8,7 +8,7 @@ import 'xterm/css/xterm.css';
 
 const isTauri = window.__TAURI_INTERNALS__ !== undefined;
 
-export default function TerminalPane() {
+export default function TerminalPane({ theme }) {
   const terminalRef = useRef(null);
   const socketRef = useRef(null);
   const termInstance = useRef(null);
@@ -120,6 +120,20 @@ export default function TerminalPane() {
     };
   }, []);
 
+  useEffect(() => {
+    if (!termInstance.current) return;
+    setTimeout(() => {
+      const style = getComputedStyle(document.documentElement);
+      const bg = style.getPropertyValue('--dyn-black').trim() || '#000000';
+      const fg = style.getPropertyValue('--dyn-green-500').trim() || '#22c55e';
+      termInstance.current.options.theme = {
+        background: bg,
+        foreground: fg,
+        cursor: fg
+      };
+    }, 50);
+  }, [theme]);
+
   return (
     <>
       <style>{`
@@ -127,17 +141,17 @@ export default function TerminalPane() {
           width: 8px;
         }
         .xterm-viewport::-webkit-scrollbar-track {
-          background: #000000;
+          background: var(--dyn-black);
         }
         .xterm-viewport::-webkit-scrollbar-thumb {
-          background: #14532d; /* green-900 */
+          background: var(--dyn-green-900);
           border-radius: 4px;
         }
         .xterm-viewport::-webkit-scrollbar-thumb:hover {
-          background: #166534; /* green-800 */
+          background: var(--dyn-green-800);
         }
       `}</style>
-      <div className="w-full h-full bg-black p-2 overflow-hidden" ref={terminalRef}></div>
+      <div className="w-full h-full p-2 overflow-hidden" style={{ backgroundColor: "var(--dyn-black)" }} ref={terminalRef}></div>
     </>
   );
 }
