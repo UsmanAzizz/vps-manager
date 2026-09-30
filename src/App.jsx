@@ -384,12 +384,12 @@ function App() {
   const renderProjectConfig = (p) => {
     if (selectedProject?.name !== p.name) return null;
     return (
-      <div className="pl-2 py-1 border-l border-green-800/60 ml-4 mt-0.5 mb-2 flex flex-col gap-0.5">
-        {isLoading && !currentFile && <div className="text-xs opacity-50 pl-2">Scanning...</div>}
+      <div className="pl-2 py-1 border-l border-orange-800/60 ml-4 mt-0.5 mb-2 flex flex-col gap-0.5">
+        {isLoading && !currentFile && <div className="text-xs opacity-50 pl-2 text-orange-600">Scanning...</div>}
         {files.map(f => (
           <div 
             key={f.path} onClick={(e) => { e.stopPropagation(); openFile(f); }}
-            className={`cursor-pointer px-2 py-1.5 text-xs transition-colors flex items-center gap-2 rounded-r ${currentFile === f.path ? 'text-green-400 bg-green-900/40 font-bold' : 'text-green-600 hover:text-green-400 hover:bg-green-900/20'}`}
+            className={`cursor-pointer px-2 py-1.5 text-xs transition-colors flex items-center gap-2 rounded-r ${currentFile === f.path ? 'text-orange-400 bg-orange-900/40 font-bold' : 'text-orange-600 hover:text-orange-400 hover:bg-orange-900/20'}`}
           >
             <FileCode className="w-3.5 h-3.5 shrink-0" />
             <span className="truncate">{f.name}</span>
@@ -405,7 +405,7 @@ function App() {
             setCurrentFile('');
             setIsTerminalOpen(false);
           }}
-          className={`cursor-pointer px-2 py-1.5 text-xs transition-colors flex items-center gap-2 rounded-r mt-0.5 ${showNginxRouter ? 'text-green-400 bg-green-900/40 font-bold' : 'text-green-600 hover:text-green-400 hover:bg-green-900/20'}`}
+          className={`cursor-pointer px-2 py-1.5 text-xs transition-colors flex items-center gap-2 rounded-r mt-0.5 ${showNginxRouter ? 'text-orange-400 bg-orange-900/40 font-bold' : 'text-orange-600 hover:text-orange-400 hover:bg-orange-900/20'}`}
         >
           <Globe className="w-3.5 h-3.5 shrink-0" />
           <span className="truncate">Nginx Router</span>
