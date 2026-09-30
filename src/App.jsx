@@ -30,6 +30,9 @@ function App() {
   const [nginxPort, setNginxPort] = useState('');
   const [nginxResult, setNginxResult] = useState('');
   const [sysInfo, setSysInfo] = useState({ ramPercent: 0, ramText: '0G / 0G', cpuLoad: '0.00', cpuCores: '0', cpuUsg: '0', uptime: 'N/A' });
+  const [theme, setTheme] = useState('default');
+  const [showThemeMenu, setShowThemeMenu] = useState(false);
+  useEffect(() => { document.documentElement.setAttribute('data-theme', theme); }, [theme]);
 
   useEffect(() => {
     let interval;
@@ -367,9 +370,9 @@ function App() {
   }
 
   return (
-    <div className="flex h-screen w-full bg-black font-mono text-[#cccccc] overflow-hidden">
+    <div className="flex h-screen w-full bg-black font-mono text-slate-300 overflow-hidden">
         {/* SIDEBAR */}
-        <div className="w-80 bg-[#161616] border-r border-green-900/30 flex flex-col shrink-0 h-full">
+        <div className="w-80 bg-slate-900 border-r border-green-900/30 flex flex-col shrink-0 h-full">
         <div className="h-10 px-4 border-b border-green-900/30 flex justify-between items-center">
           <div className="flex items-center text-green-400">
             <h3 className="font-bold tracking-widest text-lg leading-none pt-0.5">
@@ -750,7 +753,7 @@ function App() {
       </div>
       
       {/* STATUS FOOTER */}
-      <div className="h-6 bg-[#1a1a1a] border-t border-[#333] flex items-center justify-between px-4 text-[10px] text-[#888] shrink-0 font-bold select-none z-50 overflow-x-auto whitespace-nowrap custom-scrollbar">
+      <div className="h-6 bg-slate-950 border-t border-slate-800 flex items-center justify-between px-4 text-[10px] text-slate-500 shrink-0 font-bold select-none z-50 overflow-x-auto whitespace-nowrap custom-scrollbar">
         <div className="flex items-center gap-6">
           <div className="flex items-center gap-1.5" title="CPU Usage">
             <Cpu className="w-3 h-3" />
@@ -771,7 +774,23 @@ function App() {
         </div>
         
         <div className="flex items-center gap-6">
-          <div className="flex items-center gap-1.5 text-green-800">
+                    <div className="flex items-center gap-4 relative">
+            <div 
+              className="flex items-center gap-1.5 text-slate-500 hover:text-slate-300 cursor-pointer" 
+              onClick={() => setShowThemeMenu(!showThemeMenu)}
+              title="Theme Settings"
+            >
+              <Settings className="w-3 h-3" />
+              <span>[THEME]</span>
+            </div>
+            {showThemeMenu && (
+              <div className="absolute bottom-8 right-16 bg-slate-900 border border-slate-700 rounded-md shadow-xl py-2 flex flex-col z-50 text-slate-300 w-32">
+                <div className="px-4 py-2 hover:bg-slate-800 cursor-pointer" onClick={() => {setTheme('default'); setShowThemeMenu(false)}}>Retro Green</div>
+                <div className="px-4 py-2 hover:bg-slate-800 cursor-pointer" onClick={() => {setTheme('blue'); setShowThemeMenu(false)}}>Ocean Blue</div>
+                <div className="px-4 py-2 hover:bg-slate-800 cursor-pointer" onClick={() => {setTheme('light'); setShowThemeMenu(false)}}>Light Mode</div>
+              </div>
+            )}
+            <div className="flex items-center gap-1.5 text-green-800">
             <Server className="w-3 h-3" />
             <span>{creds.host}</span>
           </div>
@@ -793,6 +812,9 @@ function App() {
 }
 
 export default App;
+
+
+
 
 
 
