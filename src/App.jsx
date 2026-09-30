@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect } from 'react';
+﻿import React, { useState, useEffect, useRef } from 'react';
 import { Terminal, Server, FileCode, Play, LogOut, Loader2, CheckCircle2, AlertCircle, Folder, Settings, ShieldCheck, RefreshCw, FileText, Globe, Activity, Cpu, MemoryStick, Clock } from 'lucide-react';
 import './index.css';
 import TerminalPane from './TerminalPane';
@@ -32,6 +32,16 @@ function App() {
   const [sysInfo, setSysInfo] = useState({ ramPercent: 0, ramText: '0G / 0G', cpuLoad: '0.00', cpuCores: '0', cpuUsg: '0', uptime: 'N/A' });
   const [theme, setTheme] = useState('default');
   const [showThemeMenu, setShowThemeMenu] = useState(false);
+  const themeMenuRef = useRef(null);
+  useEffect(() => {
+    function handleClickOutside(event) {
+      if (themeMenuRef.current && !themeMenuRef.current.contains(event.target)) {
+        setShowThemeMenu(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
   useEffect(() => { document.documentElement.setAttribute('data-theme', theme); }, [theme]);
 
   useEffect(() => {
@@ -774,7 +784,7 @@ function App() {
         </div>
         
         <div className="flex items-center gap-6">
-                    <div className="flex items-center gap-4 relative">
+                    <div className="flex items-center gap-4 relative" ref={themeMenuRef}>
             <div 
               className="flex items-center gap-1.5 text-slate-500 hover:text-slate-300 cursor-pointer" 
               onClick={() => setShowThemeMenu(!showThemeMenu)}
